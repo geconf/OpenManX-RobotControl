@@ -1,0 +1,5 @@
+# GetJointVelocities.srv
+
+geometry_msgs/Pose pose
+---
+open_manipulator_msgs/JointPosition joint_position
