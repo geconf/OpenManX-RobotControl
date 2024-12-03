@@ -13,6 +13,8 @@ find_package(rosidl_default_generators REQUIRED)
 
 rosidl_generate_interfaces(${PROJECT_NAME}
   "srv/GetJointValues.srv"
+  "srv/GetEndEffectorVelocities.srv"
+  "srv/GetJointVelocities.srv"
   DEPENDENCIES geometry_msgs 
   DEPENDENCIES open_manipulator_msgs 
 )

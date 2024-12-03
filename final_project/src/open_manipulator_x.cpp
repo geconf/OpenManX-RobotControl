@@ -1,5 +1,6 @@
 #include "robot.cpp"
 #include <cmath>
+#include "geometry_msgs/msg/twist.hpp"
 
 namespace openManX
 {
@@ -67,5 +68,67 @@ namespace openManX
         const float q4 = acosf(rotJoint4To3(0,0));
 
         return { q1, q2, q3, q4 };
+    }
+
+    const uint LinkNum = 4;
+    Eigen::Matrix<float, 6, LinkNum> GetJacobian(Robot &openManX, const std::vector<float> jointPositions) 
+    {
+        setDhParams(openManX, jointPositions);
+
+        // Vectors z and o are necessary to construct the jacobian
+        Eigen::Vector3f z[LinkNum];
+        Eigen::Vector3f o[LinkNum+1];
+        for (uint i = 0; i <= LinkNum; i++)
+        {
+          const Eigen::Matrix<float, 4, 4> jointPose = openManX.getJointPose(i);
+          // We fill in the z and o vectors from the current pose
+          if (i < LinkNum) // We don't need the last value of z
+          {
+              z[i] = jointPose.col(2).head<3>();
+          }
+          o[i] = jointPose.col(3).head<3>();
+        }
+
+        // Build the jacobian, column by column
+        Eigen::Matrix<float, 6, LinkNum> j = Eigen::Matrix<float, 6, LinkNum>::Zero();
+        for (uint i = 0; i < LinkNum; i++)
+        {
+          const Eigen::Vector3f jv = z[i].cross(o[LinkNum] - o[i]);
+          Eigen::Vector<float, 6> jColumn;
+          jColumn << jv, z[i];
+          j.col(i) = jColumn;
+        }
+        return j;
+    }
+
+    Eigen::Vector<float, 6> GetTwist(
+            Robot &openManX, 
+            const std::vector<float> jointPositions,
+            std::vector<float> qDot)
+    {
+        Eigen::Matrix<float, 6, LinkNum> j = GetJacobian(openManX, jointPositions);
+        Eigen::Vector<float, 6> twist = j*Eigen::Map<Eigen::Vector<float, LinkNum>>(qDot.data());
+        return twist;
+    }
+    
+    Eigen::Vector<float, LinkNum> GetJoints(
+            Robot &openManX,
+            const std::vector<float> jointPositions,
+            const Eigen::Vector<float, 6> twist)
+    {
+        Eigen::Matrix<float, 6, LinkNum> j = GetJacobian(openManX, jointPositions);
+        /*
+        twist[0] = msgTwist.linear.x;
+        twist[1] = msgTwist.linear.y;
+        twist[2] = msgTwist.linear.z;
+        twist[3] = msgTwist.angular.x;
+        twist[4] = msgTwist.angular.y;
+        twist[5] = msgTwist.angular.z;
+        */
+
+        Eigen::Matrix<float, LinkNum, 6> jInverse = j.completeOrthogonalDecomposition().pseudoInverse();
+        Eigen::Vector<float, LinkNum> qDot = jInverse*twist;
+
+        return qDot;
     }
 };

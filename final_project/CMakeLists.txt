@@ -20,13 +20,16 @@ find_package(final_project_msgs REQUIRED)
 
 add_executable(openManX_forward_kinematics src/subscriber_forward_kinematics.cpp)
 add_executable(openManX_inverse_kinematics src/service_inverse_kinematics.cpp)
+add_executable(openManX_velocity_kinematics src/services_velocity_kinematics.cpp)
 
 ament_target_dependencies(openManX_forward_kinematics rclcpp std_msgs sensor_msgs geometry_msgs Eigen3)
 ament_target_dependencies(openManX_inverse_kinematics rclcpp std_msgs std_srvs geometry_msgs Eigen3 final_project_msgs)
+ament_target_dependencies(openManX_velocity_kinematics rclcpp std_msgs std_srvs geometry_msgs Eigen3 final_project_msgs)
 
 install(TARGETS
     openManX_forward_kinematics
     openManX_inverse_kinematics
+    openManX_velocity_kinematics
         DESTINATION lib/${PROJECT_NAME})
 
 # if(BUILD_TESTING)

@@ -1,5 +1,5 @@
 # GetJointVelocities.srv
 
-geometry_msgs/Pose pose
+geometry_msgs/Twist end_effector_velocity
 ---
-open_manipulator_msgs/JointPosition joint_position
+std_msgs/Float32MultiArray joint_velocity

@@ -22,7 +22,7 @@ class DhParameters
             jointNum_ = a_.size();
         }
 
-        std::vector<float> getA() 
+        std::vector<float> getA() const
         {
             return a_;
         }
