@@ -103,32 +103,24 @@ namespace openManX
 
     Eigen::Vector<float, 6> GetTwist(
             Robot &openManX, 
-            const std::vector<float> jointPositions,
-            std::vector<float> qDot)
+            const std::vector<float> jointPosition,
+            std::vector<float> jointVelocity)
     {
-        Eigen::Matrix<float, 6, LinkNum> j = GetJacobian(openManX, jointPositions);
-        Eigen::Vector<float, 6> twist = j*Eigen::Map<Eigen::Vector<float, LinkNum>>(qDot.data());
+        Eigen::Matrix<float, 6, LinkNum> j = GetJacobian(openManX, jointPosition);
+        Eigen::Vector<float, 6> twist = j*Eigen::Map<Eigen::Vector<float, LinkNum>>(jointVelocity.data());
         return twist;
     }
     
-    Eigen::Vector<float, LinkNum> GetJoints(
+    Eigen::Vector<float, LinkNum> GetJointVelocity(
             Robot &openManX,
-            const std::vector<float> jointPositions,
+            const std::vector<float> jointPosition,
             const Eigen::Vector<float, 6> twist)
     {
-        Eigen::Matrix<float, 6, LinkNum> j = GetJacobian(openManX, jointPositions);
-        /*
-        twist[0] = msgTwist.linear.x;
-        twist[1] = msgTwist.linear.y;
-        twist[2] = msgTwist.linear.z;
-        twist[3] = msgTwist.angular.x;
-        twist[4] = msgTwist.angular.y;
-        twist[5] = msgTwist.angular.z;
-        */
+        Eigen::Matrix<float, 6, LinkNum> j = GetJacobian(openManX, jointPosition);
 
         Eigen::Matrix<float, LinkNum, 6> jInverse = j.completeOrthogonalDecomposition().pseudoInverse();
-        Eigen::Vector<float, LinkNum> qDot = jInverse*twist;
+        Eigen::Vector<float, LinkNum> jointVelocity = jInverse*twist;
 
-        return qDot;
+        return jointVelocity;
     }
 };
