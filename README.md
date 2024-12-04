@@ -1,5 +1,5 @@
-# OpenManipulatorX_ROS2
-ROS2 Humble packages to control Open Manipulator X
+# OpenManipulatorX-ROS2
+Final Project for WPI's RBE500-Foundations of Robotics. We built ROS2 Humble packages to control the forward, inverse, and velocity kinematics of the Open Manipulator X. A PD position controller was implemented to handle joint values.
 
 ## Build
 Copy the contents of the entire repository into the src/ directory of a new ROS2 workspace.
