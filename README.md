@@ -37,4 +37,4 @@ ros2 run rbe500_example_py basic_robot_control
 
 
 ---
-RBE 500 - Foundations of Robotics 2023 taught by Professor Berk Calli at Worcester Polytechnic Institute Robotics Engineering Department
+RBE 500 - Foundations of Robotics 2024 taught by Professor Berk Calli at Worcester Polytechnic Institute Robotics Engineering Department
