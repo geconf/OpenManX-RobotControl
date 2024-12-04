@@ -1,4 +1,4 @@
-# OpenManipulatorX-ROS2
+# OpenManX-RobotControl
 Final Project for WPI's RBE500-Foundations of Robotics. We built ROS2 Humble packages to control the forward, inverse, and velocity kinematics of the Open Manipulator X. A PD position controller was implemented to handle joint values.
 
 ## Build
