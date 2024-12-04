@@ -35,28 +35,19 @@ uint setJointPos(
         }
     RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "service not available, waiting again...");
     }
+
     auto result = clientJointPos->async_send_request(setJointPos);
 
-    while (true)
+    /*
+    if (rclcpp::spin_until_future_complete(node, result) == rclcpp::FutureReturnCode::SUCCESS) 
     {
-        if (rclcpp::spin_until_future_complete(node, result) == rclcpp::FutureReturnCode::SUCCESS) 
-        {
-            // Check the result of the service call
-            if (result.get()->is_planned) 
-            {  // Assuming 'success' is a field in your response
-               RCLCPP_INFO(node->get_logger(), "Service call succeeded");
-               break;  // Exit the loop if the service call is successful
-            } 
-            else 
-            {
-                RCLCPP_WARN(node->get_logger(), "Service call failed, retrying...");
-            }
-        } 
-        else 
-        {
-            RCLCPP_ERROR(node->get_logger(), "Service call failed (no result), retrying...");
-        }
+        RCLCPP_INFO(node->get_logger(), "Service call successful: %s", result.get()->is_planned ? "true" : "false");
+    } 
+    else 
+    {
+        RCLCPP_ERROR(node->get_logger(), "Service call failed");
     }
+    */
     return 0;
 }
 
@@ -75,22 +66,32 @@ int main(int argc, char **argv)
 
     geometry_msgs::msg::Twist twist;
     twist.linear.x = 0;
-    twist.linear.y = 0.1; // Reference in +y direction
+    twist.linear.y = 0.075; // Reference in +y direction
     twist.linear.z = 0;
     twist.angular.x = 0;
     twist.angular.y = 0;
     twist.angular.z = 0;
 
-    Eigen::Vector<double, 5> jointPos = { -1, 0, 0, 0, 0 };
-    Eigen::Vector<double, 5> jointPosOld = { 0, 0, 0, 0, 0 };
+    Eigen::Vector<double, 5> startPos = {
+        -0.5630,
+        0.5216,
+        -0.4387,
+        1.3898,
+        0 
+    };
+    Eigen::Vector<double, 5> jointPos = startPos;
+    Eigen::Vector<double, 5> jointPosOld = startPos;
 
     // Set initial position
     const double initPathTime = 3;
     setJointPos(node, clientJointPos, jointPos, initPathTime);
 
-    while (true)
+    // Wait until robot reaches the start
+    sleep(5);
+
+    // Keep doing this until the last square on the board
+    while (jointPosOld[0] < 0.6381)
     {
-        std::cout << "hello POST LOOP" << std::endl;
         auto getJointVelocity = std::make_shared<final_project_msgs::srv::GetJointVelocities::Request>();
         getJointVelocity->end_effector_velocity = twist;
 
