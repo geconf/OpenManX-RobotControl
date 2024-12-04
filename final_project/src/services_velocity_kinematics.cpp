@@ -47,7 +47,7 @@ class ServicesVelocityKinematics : public rclcpp::Node
 
     private:
         Robot openManXRobot;
-        std::vector<float> JointPosition;
+        std::vector<float> JointPosition = { 0, 0, 0, 0 };
 
         void getEndEffectorVelocity(
                 const std::shared_ptr<final_project_msgs::srv::GetEndEffectorVelocities::Request> request,
@@ -95,7 +95,7 @@ class ServicesVelocityKinematics : public rclcpp::Node
                   JointPosition,
                   twist);
 
-            std::vector<float> msgJointVelocity;
+            std::vector<float> msgJointVelocity = { 0, 0, 0, 0 };
             for (uint i = 0; i < openManXRobot.dhParams_.getNumberOfJoints(); i++)
             {
                 msgJointVelocity[i] = jointVelocity[i];

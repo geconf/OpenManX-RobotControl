@@ -26,23 +26,36 @@ uint setJointPos(
     setJointPos->joint_position.position = msgJointPos;
     setJointPos->path_time = pathTime;
 
-    while (!clientJointPos->wait_for_service(1s)) {
-    if (!rclcpp::ok()) {
-      RCLCPP_ERROR(rclcpp::get_logger("rclcpp"), "Interrupted while waiting for the service. Exiting.");   
-      return 0;
+    while (!clientJointPos->wait_for_service(1s)) 
+    {
+        if (!rclcpp::ok()) 
+        {
+            RCLCPP_ERROR(rclcpp::get_logger("rclcpp"), "Interrupted while waiting for the service. Exiting.");   
+            return 0;
+        }
     RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "service not available, waiting again...");
-    }
     }
     auto result = clientJointPos->async_send_request(setJointPos);
 
-    // Wait for the result.
-    if (rclcpp::spin_until_future_complete(node, result) ==
-    rclcpp::FutureReturnCode::SUCCESS)
+    while (true)
     {
-    } 
-    else
-    {
-        RCLCPP_ERROR(rclcpp::get_logger("rclcpp"), "Failed to call service");
+        if (rclcpp::spin_until_future_complete(node, result) == rclcpp::FutureReturnCode::SUCCESS) 
+        {
+            // Check the result of the service call
+            if (result.get()->is_planned) 
+            {  // Assuming 'success' is a field in your response
+               RCLCPP_INFO(node->get_logger(), "Service call succeeded");
+               break;  // Exit the loop if the service call is successful
+            } 
+            else 
+            {
+                RCLCPP_WARN(node->get_logger(), "Service call failed, retrying...");
+            }
+        } 
+        else 
+        {
+            RCLCPP_ERROR(node->get_logger(), "Service call failed (no result), retrying...");
+        }
     }
     return 0;
 }
@@ -68,7 +81,7 @@ int main(int argc, char **argv)
     twist.angular.y = 0;
     twist.angular.z = 0;
 
-    Eigen::Vector<double, 5> jointPos = { 0, 0, 0, 0, 0 };
+    Eigen::Vector<double, 5> jointPos = { -1, 0, 0, 0, 0 };
     Eigen::Vector<double, 5> jointPosOld = { 0, 0, 0, 0, 0 };
 
     // Set initial position
