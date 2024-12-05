@@ -7,6 +7,7 @@
 #include <final_project_msgs/srv/detail/get_joint_velocities__struct.hpp>
 #include <memory>
 #include <eigen3/Eigen/Dense>
+#include <cmath>
 
 using namespace std::chrono_literals;
 /*
@@ -38,16 +39,6 @@ uint setJointPos(
 
     auto result = clientJointPos->async_send_request(setJointPos);
 
-    /*
-    if (rclcpp::spin_until_future_complete(node, result) == rclcpp::FutureReturnCode::SUCCESS) 
-    {
-        RCLCPP_INFO(node->get_logger(), "Service call successful: %s", result.get()->is_planned ? "true" : "false");
-    } 
-    else 
-    {
-        RCLCPP_ERROR(node->get_logger(), "Service call failed");
-    }
-    */
     return 0;
 }
 
@@ -66,13 +57,15 @@ int main(int argc, char **argv)
 
     geometry_msgs::msg::Twist twist;
     twist.linear.x = 0;
-    twist.linear.y = 0.075; // Reference in +y direction
+    //twist.linear.y = 0.075; // Reference in +y direction
+    twist.linear.y = 1.75; // Reference in +y direction
+    //twist.linear.y = 100000.0; // Reference in +y direction
     twist.linear.z = 0;
     twist.angular.x = 0;
     twist.angular.y = 0;
     twist.angular.z = 0;
 
-    Eigen::Vector<double, 5> startPos = {
+    const Eigen::Vector<double, 5> startPos = {
         -0.5630,
         0.5216,
         -0.4387,
@@ -89,9 +82,16 @@ int main(int argc, char **argv)
     // Wait until robot reaches the start
     sleep(5);
 
+    // Initialize the clock
+    auto previous_time = node->get_clock()->now();
+
     // Keep doing this until the last square on the board
     while (jointPosOld[0] < 0.6381)
     {
+        auto current_time = node->get_clock()->now();
+        auto sampling_time = current_time - previous_time;
+        std::cout << sampling_time.seconds() << std::endl;
+        previous_time = current_time;
         auto getJointVelocity = std::make_shared<final_project_msgs::srv::GetJointVelocities::Request>();
         getJointVelocity->end_effector_velocity = twist;
 
@@ -111,8 +111,15 @@ int main(int argc, char **argv)
         {
             jointVelocity[i] = static_cast<double>(msgJointVelocity[i]); 
         }
+
         // Calculate the new jointPos
-        jointPos = jointPosOld + jointVelocity*0.1;
+        std::cout << "0.1jointVelocity: " << jointVelocity << std::endl;
+        std::cout <<  "0.1samplingTime: " << 0.1 << std::endl;
+        std::cout << "0.1math: " << jointVelocity*pow(0.1, 2.0) << std::endl;
+        std::cout << "jointVelocity: " << jointVelocity << std::endl;
+        std::cout <<  "samplingTime: " << sampling_time.seconds() << std::endl;
+        std::cout << "math: " << jointVelocity*pow(sampling_time.seconds(), 2.0) << std::endl;
+        jointPos = jointPosOld + jointVelocity*pow(0.1, 2.0);
         // Move it
         setJointPos(node, clientJointPos, jointPos, 0.1);
         // Update jointPosOld
