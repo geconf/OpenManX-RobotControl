@@ -15,15 +15,15 @@ void callback(const rclcpp::Client<open_manipulator_msgs::srv::SetJointPosition>
 */
 
 uint setJointPos(
-        std::shared_ptr<rclcpp::Node> node,
-        rclcpp::Client<open_manipulator_msgs::srv::SetJointPosition>::SharedPtr clientJointPos,
-        Eigen::Vector<double, 5> jointPos,
-        double pathTime) 
+        const std::shared_ptr<rclcpp::Node> node,
+        const rclcpp::Client<open_manipulator_msgs::srv::SetJointPosition>::SharedPtr clientJointPos,
+        const Eigen::Vector<double, 5> jointPos,
+        const double pathTime) 
 {
-    auto setJointPos = std::make_shared<open_manipulator_msgs::srv::SetJointPosition::Request>();
+    const auto setJointPos = std::make_shared<open_manipulator_msgs::srv::SetJointPosition::Request>();
     setJointPos->planning_group = "";
     setJointPos->joint_position.joint_name = {"joint1", "joint2", "joint3", "joint4", "gripper"};
-    std::vector<double> msgJointPos(jointPos.data(), jointPos.data() + jointPos.size());
+    const std::vector<double> msgJointPos(jointPos.data(), jointPos.data() + jointPos.size());
     setJointPos->joint_position.position = msgJointPos;
     setJointPos->path_time = pathTime;
 
@@ -37,7 +37,7 @@ uint setJointPos(
     RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "service not available, waiting again...");
     }
 
-    auto result = clientJointPos->async_send_request(setJointPos);
+    const auto result = clientJointPos->async_send_request(setJointPos);
 
     return 0;
 }
@@ -47,19 +47,19 @@ int main(int argc, char **argv)
     rclcpp::init(argc, argv);
 
 
-    std::shared_ptr<rclcpp::Node> node = rclcpp::Node::make_shared("velocity_control");
+    const std::shared_ptr<rclcpp::Node> node = rclcpp::Node::make_shared("velocity_control");
 
-    rclcpp::Client<final_project_msgs::srv::GetJointVelocities>::SharedPtr clientJointVelocity =
+    const rclcpp::Client<final_project_msgs::srv::GetJointVelocities>::SharedPtr clientJointVelocity =
     node->create_client<final_project_msgs::srv::GetJointVelocities>("getJointVelocity");
 
-    rclcpp::Client<open_manipulator_msgs::srv::SetJointPosition>::SharedPtr clientJointPos =
+    const rclcpp::Client<open_manipulator_msgs::srv::SetJointPosition>::SharedPtr clientJointPos =
     node->create_client<open_manipulator_msgs::srv::SetJointPosition>("goal_joint_space_path");
 
     geometry_msgs::msg::Twist twist;
     twist.linear.x = 0;
     //twist.linear.y = 0.075; // Reference in +y direction
-    twist.linear.y = 1.75; // Reference in +y direction
-    //twist.linear.y = 100000.0; // Reference in +y direction
+    //twist.linear.y = 1.75; // Reference in +y direction
+    twist.linear.y = 500; // Reference in +y direction
     twist.linear.z = 0;
     twist.angular.x = 0;
     twist.angular.y = 0;
@@ -80,19 +80,23 @@ int main(int argc, char **argv)
     setJointPos(node, clientJointPos, jointPos, initPathTime);
 
     // Wait until robot reaches the start
-    sleep(5);
+    const int initTime = 5;
+    sleep(initTime);
 
     // Initialize the clock
     auto previous_time = node->get_clock()->now();
 
     // Keep doing this until the last square on the board
-    while (jointPosOld[0] < 0.6381)
+    const double frequency = 10;
+    rclcpp::Rate rate(frequency);
+    const double stopBound = 0.6381;
+    auto start_time = previous_time;
+    while (jointPosOld[0] < stopBound)
     {
-        auto current_time = node->get_clock()->now();
-        auto sampling_time = current_time - previous_time;
-        std::cout << sampling_time.seconds() << std::endl;
+        const auto current_time = node->get_clock()->now();
+        const auto sampling_time = current_time - previous_time;
         previous_time = current_time;
-        auto getJointVelocity = std::make_shared<final_project_msgs::srv::GetJointVelocities::Request>();
+        const auto getJointVelocity = std::make_shared<final_project_msgs::srv::GetJointVelocities::Request>();
         getJointVelocity->end_effector_velocity = twist;
 
         auto jointVelocityFuture = clientJointVelocity->async_send_request(getJointVelocity);
@@ -113,18 +117,22 @@ int main(int argc, char **argv)
         }
 
         // Calculate the new jointPos
-        std::cout << "0.1jointVelocity: " << jointVelocity << std::endl;
-        std::cout <<  "0.1samplingTime: " << 0.1 << std::endl;
-        std::cout << "0.1math: " << jointVelocity*pow(0.1, 2.0) << std::endl;
-        std::cout << "jointVelocity: " << jointVelocity << std::endl;
+        std::cout << "jointVelocity: " << std::endl;
+        std::cout << jointVelocity << std::endl;
         std::cout <<  "samplingTime: " << sampling_time.seconds() << std::endl;
-        std::cout << "math: " << jointVelocity*pow(sampling_time.seconds(), 2.0) << std::endl;
-        jointPos = jointPosOld + jointVelocity*pow(0.1, 2.0);
+        std::cout << "step: " << jointVelocity*pow(1/frequency, 2.0) << std::endl;
+        jointPos = jointPosOld + jointVelocity*pow(1/frequency, 2.0);
         // Move it
-        setJointPos(node, clientJointPos, jointPos, 0.1);
+        setJointPos(node, clientJointPos, jointPos, 1/frequency);
         // Update jointPosOld
         jointPosOld = jointPos;
+        rate.sleep();
     }
+    const auto end_time = node->get_clock()->now();
+    const auto moving_time = end_time.seconds() - start_time.seconds();
+    const double approxPathLength = 280; // in mm
+    const double velocity = approxPathLength/moving_time;
+    std::cout << "velocity: " << velocity << std::endl;
 
     rclcpp::shutdown();
     return 0;
