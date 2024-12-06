@@ -23,6 +23,8 @@
 #include <sensor_msgs/msg/joint_state.hpp>
 #include <rclcpp/publisher.hpp>
 #include <std_msgs/msg/detail/float32_multi_array__struct.hpp>
+#include <iostream>
+#include <fstream>
 
 using std::placeholders::_1;
 
@@ -54,6 +56,17 @@ class SubscriberForwardKinematics : public rclcpp::Node
             endEffectorPoint.x = endEffectorTransform(0, 3);
             endEffectorPoint.y = endEffectorTransform(1, 3);
             endEffectorPoint.z = endEffectorTransform(2, 3);
+
+            // Append to file
+            const char* filename = "data.txt";
+            std::ofstream appendFile(filename, std::ios::app);
+            if (appendFile.is_open()) {
+                appendFile << endEffectorPoint.x << "\t" << endEffectorPoint.y << "\t" << endEffectorPoint.z << std::endl;
+                appendFile.close();
+                std::cout << "Content appended to the file successfully." << std::endl;
+            } else {
+                std::cerr << "Error appending to the file!" << std::endl;
+            }
 
             geometry_msgs::msg::Quaternion endEffectorOrientation = 
                 rotation_matrix_to_quaternion(endEffectorTransform.block<3, 3>(0, 0));
@@ -105,6 +118,18 @@ class SubscriberForwardKinematics : public rclcpp::Node
 
 int main(int argc, char * argv[])
 {
+    const char* filename = "data.txt";
+
+    // Create a new file (this will overwrite the file if it exists)
+    std::ofstream outFile(filename);
+    if (outFile.is_open()) {
+        outFile << "x\ty\tz" << std::endl;
+        outFile.close();
+        std::cout << "New file created successfully." << std::endl;
+    } else {
+        std::cerr << "Error creating file!" << std::endl;
+    }
+
     rclcpp::init(argc, argv);
     rclcpp::spin(std::make_shared<SubscriberForwardKinematics>());
     rclcpp::shutdown();
