@@ -80,7 +80,7 @@ int main(int argc, char **argv)
     setJointPos(node, clientJointPos, jointPos, initPathTime);
 
     // Wait until robot reaches the start
-    const int initTime = 5;
+    const int initTime = 15;
     sleep(initTime);
 
     // Initialize the clock

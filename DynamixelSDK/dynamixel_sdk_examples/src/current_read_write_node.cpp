@@ -32,18 +32,24 @@
 #include <string>
 
 #include "dynamixel_sdk/dynamixel_sdk.h"
-#include "dynamixel_sdk_custom_interfaces/msg/set_position.hpp"
-#include "dynamixel_sdk_custom_interfaces/srv/get_position.hpp"
+// #include "dynamixel_sdk_custom_interfaces/msg/set_position.hpp"
+// #include "dynamixel_sdk_custom_interfaces/srv/get_position.hpp"
+#include "dynamixel_sdk_custom_interfaces/msg/set_current.hpp"
+#include "dynamixel_sdk_custom_interfaces/srv/get_current.hpp"
 #include "rclcpp/rclcpp.hpp"
 #include "rcutils/cmdline_parser.h"
 
-#include "read_write_node.hpp"
+#include "current_read_write_node.hpp"
 
 // Control table address for X series (except XL-320)
 #define ADDR_OPERATING_MODE 11
 #define ADDR_TORQUE_ENABLE 64
-#define ADDR_GOAL_POSITION 116
-#define ADDR_PRESENT_POSITION 132
+// #define ADDR_GOAL_POSITION 116
+// #define ADDR_PRESENT_POSITION 132
+
+// smh I added these for current control ----------------------------------------------------
+#define ADDR_GOAL_CURRENT 102
+#define ADDR_PRESENT_CURRENT 126
 
 // Protocol version
 #define PROTOCOL_VERSION 2.0  // Default Protocol version of DYNAMIXEL X series.
@@ -56,80 +62,90 @@ dynamixel::PortHandler * portHandler;
 dynamixel::PacketHandler * packetHandler;
 
 uint8_t dxl_error = 0;
-uint32_t goal_position = 0;
+// uint32_t goal_position = 0;
 int dxl_comm_result = COMM_TX_FAIL;
 
+// smh I added these for current control ----------------------------------------------------
+uint16_t goal_current = 0;
+uint16_t present_current = 0;
+
+
+// Constructor for the ReadWriteNode class, which is a subclass of Node
 ReadWriteNode::ReadWriteNode()
-: Node("read_write_node")
+: Node("read_write_node") // Initialize the Node with the name "read_write_node"
 {
-  RCLCPP_INFO(this->get_logger(), "Run read write node");
+  RCLCPP_INFO(this->get_logger(), "Run read write node"); // Log the start of the node
 
+  // Declare and initialize a ROS2 parameter 'qos_depth' with a default value of 10
   this->declare_parameter("qos_depth", 10);
-  int8_t qos_depth = 0;
-  this->get_parameter("qos_depth", qos_depth);
+  int8_t qos_depth = 0; // Variable to store the value of qos_depth
+  this->get_parameter("qos_depth", qos_depth); // Retrieve the value of 'qos_depth' parameter
 
+  // Define Quality of Service (QoS) settings for the ROS2 subscriber
   const auto QOS_RKL10V =
     rclcpp::QoS(rclcpp::KeepLast(qos_depth)).reliable().durability_volatile();
 
-  set_position_subscriber_ =
-    this->create_subscription<SetPosition>(
-    "set_position",
-    QOS_RKL10V,
-    [this](const SetPosition::SharedPtr msg) -> void
+  // Create a subscriber for the "set_current" topic
+  set_current_subscriber_ =
+    this->create_subscription<SetCurrent>(
+    "set_current",                                  // Topic name
+    QOS_RKL10V,                                     // QoS profile
+    [this](const SetCurrent::SharedPtr msg) -> void // Callback function for the subscriber
     {
-      uint8_t dxl_error = 0;
+      uint8_t dxl_error = 0; //Variable to store the error from the DYNAMIXEL
 
-      // Position Value of X series is 4 byte data.
+      // Current Value of X series is 2*** byte data.
       // For AX & MX(1.0) use 2 byte data(uint16_t) for the Position Value.
-      uint32_t goal_position = (unsigned int)msg->position;  // Convert int32 -> uint32
+      uint16_t goal_current = static_cast<uint16_t>(msg->current); // (unsigned int)msg->current;  // Convert int32 -> uint32
 
-      // Write Goal Position (length : 4 bytes)
+      // Write Goal Current (length : 2 bytes)
       // When writing 2 byte data to AX / MX(1.0), use write2ByteTxRx() instead.
       dxl_comm_result =
-      packetHandler->write4ByteTxRx(
+      packetHandler->write2ByteTxRx( // write4ByteTxRx(
         portHandler,
-        (uint8_t) msg->id,
-        ADDR_GOAL_POSITION,
-        goal_position,
-        &dxl_error
+        static_cast<uint8_t>(msg->id),  // (uint8_t) msg->id, // Dynamixel ID
+        ADDR_GOAL_CURRENT,              // ADDR_GOAL_POSITION, // Address to write the goal position
+        goal_current,                   // Goal current value
+        &dxl_error                      // Error storage
       );
 
+      // Check and handle communication results or errors
       if (dxl_comm_result != COMM_SUCCESS) {
         RCLCPP_INFO(this->get_logger(), "%s", packetHandler->getTxRxResult(dxl_comm_result));
       } else if (dxl_error != 0) {
         RCLCPP_INFO(this->get_logger(), "%s", packetHandler->getRxPacketError(dxl_error));
       } else {
-        RCLCPP_INFO(this->get_logger(), "Set [ID: %d] [Goal Position: %d]", msg->id, msg->position);
+        RCLCPP_INFO(this->get_logger(), "Set [ID: %d] [Goal Current: %d]", msg->id, msg->current);
       }
     }
     );
 
-  auto get_present_position =
+  auto get_present_current =
     [this](
-    const std::shared_ptr<GetPosition::Request> request,
-    std::shared_ptr<GetPosition::Response> response) -> void
+    const std::shared_ptr<GetCurrent::Request> request,
+    std::shared_ptr<GetCurrent::Response> response) -> void
     {
-      // Read Present Position (length : 4 bytes) and Convert uint32 -> int32
+      // Read Present Current (length : 2 bytes) and Convert uint32 -> int32
       // When reading 2 byte data from AX / MX(1.0), use read2ByteTxRx() instead.
-      dxl_comm_result = packetHandler->read4ByteTxRx(
+      dxl_comm_result = packetHandler->read2ByteTxRx(
         portHandler,
-        (uint8_t) request->id,
-        ADDR_PRESENT_POSITION,
-        reinterpret_cast<uint32_t *>(&present_position),
+        static_cast<uint8_t>(request->id), // (uint8_t) request->id,
+        ADDR_PRESENT_CURRENT,
+        &present_current, // reinterpret_cast<uint32_t *>(&present_position),
         &dxl_error
       );
 
       RCLCPP_INFO(
         this->get_logger(),
-        "Get [ID: %d] [Present Position: %d]",
+        "Get [ID: %d] [Present Current: %d]",
         request->id,
-        present_position
+        present_current
       );
 
-      response->position = present_position;
+      response->current = present_current;
     };
 
-  get_position_server_ = create_service<GetPosition>("get_position", get_present_position);
+  get_current_server_ = create_service<GetCurrent>("get_current", get_present_current);
 }
 
 ReadWriteNode::~ReadWriteNode()
@@ -185,6 +201,7 @@ void setupDynamixel(uint8_t dxl_id)
     RCLCPP_INFO(rclcpp::get_logger("read_write_node"), "Succeeded to enable torque.");
   }
 }
+
 
 int main(int argc, char * argv[])
 {

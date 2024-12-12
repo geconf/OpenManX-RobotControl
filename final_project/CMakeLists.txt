@@ -17,22 +17,26 @@ find_package(sensor_msgs REQUIRED)
 find_package(geometry_msgs REQUIRED)
 find_package(Eigen3 REQUIRED)
 find_package(final_project_msgs REQUIRED)
+find_package(dynamixel_sdk_custom_interfaces REQUIRED)
 
 add_executable(openManX_forward_kinematics src/subscriber_forward_kinematics.cpp)
 add_executable(openManX_inverse_kinematics src/service_inverse_kinematics.cpp)
 add_executable(openManX_velocity_kinematics src/services_velocity_kinematics.cpp)
 add_executable(openManX_velocity_control src/velocity_control.cpp)
+add_executable(openManX_position_control src/position_control.cpp)
 
 ament_target_dependencies(openManX_forward_kinematics rclcpp std_msgs sensor_msgs geometry_msgs Eigen3)
 ament_target_dependencies(openManX_inverse_kinematics rclcpp std_msgs std_srvs geometry_msgs Eigen3 final_project_msgs)
 ament_target_dependencies(openManX_velocity_kinematics rclcpp std_msgs std_srvs sensor_msgs geometry_msgs Eigen3 final_project_msgs)
 ament_target_dependencies(openManX_velocity_control rclcpp std_msgs std_srvs Eigen3 final_project_msgs)
+ament_target_dependencies(openManX_position_control rclcpp std_msgs dynamixel_sdk_custom_interfaces)
 
 install(TARGETS
     openManX_forward_kinematics
     openManX_inverse_kinematics
     openManX_velocity_kinematics
     openManX_velocity_control
+    openManX_position_control
         DESTINATION lib/${PROJECT_NAME})
 
 # if(BUILD_TESTING)
