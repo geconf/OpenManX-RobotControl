@@ -11,7 +11,7 @@ int getPos(
         const rclcpp::Client<dynamixel_sdk_custom_interfaces::srv::GetPosition>::SharedPtr client_get_position
         )
 {
-    const int jointId = 4;
+    const int jointId = 1;
     const auto getPosition = std::make_shared<dynamixel_sdk_custom_interfaces::srv::GetPosition::Request>();
     getPosition->id = jointId;
 
@@ -29,7 +29,7 @@ int getPos(
     }
 
     // Wait for result
-    int msgPos;
+    double msgPos;
     if (rclcpp::spin_until_future_complete(node->get_node_base_interface(), posFuture) ==
         rclcpp::FutureReturnCode::SUCCESS)
     {
