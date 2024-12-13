@@ -111,7 +111,7 @@ int main(int argc, char **argv)
         setCurrent(publisher_current, current);
         std::ofstream appendFile(filename, std::ios::app);
         if (appendFile.is_open()) {
-            appendFile << Reference << "\t" << Pos << "\t" << std::endl;
+            appendFile << Reference << "\t" << Pos << std::endl;
             appendFile.close();
             std::cout << "Content appended to the file successfully." << std::endl;
         } else {
