@@ -29,23 +29,25 @@
 
 #include <cstdio>
 #include <memory>
+#include <rclcpp/subscription.hpp>
 #include <string>
 
 #include "dynamixel_sdk/dynamixel_sdk.h"
-// #include "dynamixel_sdk_custom_interfaces/msg/set_position.hpp"
-// #include "dynamixel_sdk_custom_interfaces/srv/get_position.hpp"
+#include "dynamixel_sdk_custom_interfaces/msg/set_position.hpp"
+#include "dynamixel_sdk_custom_interfaces/srv/get_position.hpp"
 #include "dynamixel_sdk_custom_interfaces/msg/set_current.hpp"
 #include "dynamixel_sdk_custom_interfaces/srv/get_current.hpp"
 #include "rclcpp/rclcpp.hpp"
 #include "rcutils/cmdline_parser.h"
 
 #include "current_read_write_node.hpp"
+#include "read_write_node.hpp"
 
 // Control table address for X series (except XL-320)
 #define ADDR_OPERATING_MODE 11
 #define ADDR_TORQUE_ENABLE 64
-// #define ADDR_GOAL_POSITION 116
-// #define ADDR_PRESENT_POSITION 132
+#define ADDR_GOAL_POSITION 116
+#define ADDR_PRESENT_POSITION 132
 
 // smh I added these for current control ----------------------------------------------------
 #define ADDR_GOAL_CURRENT 102
@@ -145,6 +147,66 @@ ReadWriteNode::ReadWriteNode()
       response->current = present_current;
     };
 
+  rclcpp::Subscription<SetPosition>::SharedPtr set_position_subscriber_ =
+    this->create_subscription<SetPosition>(
+    "set_position",
+    QOS_RKL10V,
+    [this](const SetPosition::SharedPtr msg) -> void
+    {
+      uint8_t dxl_error = 0;
+
+      // Position Value of X series is 4 byte data.
+      // For AX & MX(1.0) use 2 byte data(uint16_t) for the Position Value.
+      uint32_t goal_position = (unsigned int)msg->position;  // Convert int32 -> uint32
+
+      // Write Goal Position (length : 4 bytes)
+      // When writing 2 byte data to AX / MX(1.0), use write2ByteTxRx() instead.
+      dxl_comm_result =
+      packetHandler->write4ByteTxRx(
+        portHandler,
+        (uint8_t) msg->id,
+        ADDR_GOAL_POSITION,
+        goal_position,
+        &dxl_error
+      );
+
+      if (dxl_comm_result != COMM_SUCCESS) {
+        RCLCPP_INFO(this->get_logger(), "%s", packetHandler->getTxRxResult(dxl_comm_result));
+      } else if (dxl_error != 0) {
+        RCLCPP_INFO(this->get_logger(), "%s", packetHandler->getRxPacketError(dxl_error));
+      } else {
+        RCLCPP_INFO(this->get_logger(), "Set [ID: %d] [Goal Position: %d]", msg->id, msg->position);
+      }
+    }
+    );
+
+  auto get_present_position =
+    [this](
+    const std::shared_ptr<GetPosition::Request> request,
+    std::shared_ptr<GetPosition::Response> response) -> void
+    {
+      // Read Present Position (length : 4 bytes) and Convert uint32 -> int32
+      // When reading 2 byte data from AX / MX(1.0), use read2ByteTxRx() instead.
+      dxl_comm_result = packetHandler->read4ByteTxRx(
+        portHandler,
+        (uint8_t) request->id,
+        ADDR_PRESENT_POSITION,
+        reinterpret_cast<uint32_t *>(&present_position),
+        &dxl_error
+      );
+
+      RCLCPP_INFO(
+        this->get_logger(),
+        "Get [ID: %d] [Present Position: %d]",
+        request->id,
+        present_position
+      );
+
+      response->position = present_position;
+    };
+
+//rclcpp::Service<GetPosition>::SharedPtr get_position_server_ = create_service<GetPosition>("get_position", get_present_position);
+  get_position_server_ = create_service<GetPosition>("get_position", get_present_position);
   get_current_server_ = create_service<GetCurrent>("get_current", get_present_current);
 }
 
